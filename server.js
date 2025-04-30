@@ -1,9 +1,8 @@
-// server/server.js
 const express = require("express");
 const cors = require("cors");
 const dotenv = require("dotenv");
 const fetch = require("node-fetch");
-const { Configuration, OpenAIApi } = require("openai");
+const OpenAI = require("openai");
 
 dotenv.config();
 
@@ -13,16 +12,16 @@ const PORT = process.env.PORT || 5000;
 app.use(cors());
 app.use(express.json());
 
-const configuration = new Configuration({
+// ✅ Correct OpenAI v4 usage
+const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });
-const openai = new OpenAIApi(configuration);
 
 app.post("/generate", async (req, res) => {
   const { topic } = req.body;
 
   try {
-    const chatResponse = await openai.createChatCompletion({
+    const chatResponse = await openai.chat.completions.create({
       model: "gpt-3.5-turbo",
       messages: [
         {
@@ -32,21 +31,21 @@ app.post("/generate", async (req, res) => {
       ],
     });
 
-    const caption = chatResponse?.data?.choices?.[0]?.message?.content?.trim();
+    const caption = chatResponse?.choices?.[0]?.message?.content?.trim() || "No caption returned.";
 
     const imageRes = await fetch(
       `https://api.unsplash.com/photos/random?query=${encodeURIComponent(topic)}&client_id=${process.env.UNSPLASH_ACCESS_KEY}`
     );
     const imageData = await imageRes.json();
-    const imageUrl = imageData.urls?.regular || "";
+    const imageUrl = imageData?.urls?.regular || "";
 
     res.json({ caption, imageUrl });
   } catch (err) {
-    console.error("Server Error:", err);
-    res.status(500).json({ error: "Failed to generate meme." });
+    console.error("Server error:", err);
+    res.status(500).json({ error: "Something went wrong generating meme." });
   }
 });
 
 app.listen(PORT, () => {
-  console.log(`✅ Server running at http://localhost:${PORT}`);
+  console.log(`✅ Server running on http://localhost:${PORT}`);
 });
